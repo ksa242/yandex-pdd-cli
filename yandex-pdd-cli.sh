@@ -49,7 +49,8 @@ $0 -h
 		Вывести все записи домена в формате, подобном zone-файлу:
 		id  name  ttl  type  data
 
-	show запись [запись...]
+	show   запись [запись...]
+	search запись [запись...]
 		Вывести указанные записи домена (укажите ID или поддомены) в формате:
 		id  name  ttl  type  data
 
@@ -65,6 +66,7 @@ $0 -h
 
 		TTL необязателен и по умолчанию равен ${PDD_DEFAULT_TTL}.
 
+	remove запись [запись...]
 	delete запись [запись...]
 		Удалить указанные записи (укажите ID).
 EOF
@@ -145,7 +147,7 @@ yandex_pdd_show () {
 		curl -sL -H "PddToken: ${PDD_TOKEN}" \
 			--data-raw "domain=$(_idn2ascii "${domain}")" \
 			--get 'https://pddimp.yandex.ru/api2/admin/dns/list' \
-		| jq -S '.records[] | select("\(.record_id)" == "'"${record}"'" or .subdomain == "'"${record}"'")'
+		| jq -S '.records[] | select("\(.record_id)" == "'"${record}"'" or (.subdomain | contains("'"${record}"'")))'
 	done
 }
 
@@ -234,7 +236,7 @@ yandex_pdd_edit () {
 # Удалить записи домена.
 # Аргументы: домен id...
 # Вывод: строка успешного ответа.
-yandex_pdd_delete () {
+yandex_pdd_remove () {
 	[ $# -ge 2 ] || return 0
 
 	# shellcheck disable=SC2039
@@ -262,10 +264,10 @@ cmd='list'
 [ $# -gt 0 ] && { cmd="$1"; shift; }
 
 case "${cmd}" in
-list)   yandex_pdd_list   "${PDD_DOMAIN}";;
-show)   yandex_pdd_show   "${PDD_DOMAIN}" "$@";;
-add)    yandex_pdd_add    "${PDD_DOMAIN}";;
-edit)   yandex_pdd_edit   "${PDD_DOMAIN}";;
-delete) yandex_pdd_delete "${PDD_DOMAIN}" "$@";;
-*)      _show_usage; _err "Не знаю команду ${cmd}"; exit 1;;
+list)          yandex_pdd_list   "${PDD_DOMAIN}";;
+show|search)   yandex_pdd_show   "${PDD_DOMAIN}" "$@";;
+add)           yandex_pdd_add    "${PDD_DOMAIN}";;
+edit)          yandex_pdd_edit   "${PDD_DOMAIN}";;
+remove|delete) yandex_pdd_remove "${PDD_DOMAIN}" "$@";;
+*)             _show_usage; _err "Не знаю команду ${cmd}"; exit 1;;
 esac
